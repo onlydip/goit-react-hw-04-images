@@ -28,7 +28,7 @@ export function  App  ()  {
 
   useEffect(() => {
     if (currentPage === totalPages - 1) {
-      toast.error('Кінець галереї');
+      toast.error('Gallery end');
     }
   }, [currentPage, totalPages]);
 
