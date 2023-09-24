@@ -1,85 +1,83 @@
-import { Component } from 'react';
-import { ToastContainer } from 'react-toastify';
+import React, { useState, useEffect } from 'react';
+import { ToastContainer, toast } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
 import { AppSection } from './App.styled';
 import { SearchBar } from '../../components/SearchBar/SearchBar';
 import { ImageGallery } from '../ImageGallery/index';
 import { getPic, options } from '../../services/api';
 import { Loader } from 'components/Loader/index';
-import { toast } from 'react-toastify';
-import 'react-toastify/dist/ReactToastify.css';
 
-export class App extends Component {
-  state = {
-    name: '',
-    pictures: [],
-    isLoading: false,
-    currentPage: 1,
-    totalPages: null,
-    totalHits: null,
-  };
+export function  App  ()  {
+  const [name, setName] = useState('');
+  const [pictures, setPictures] = useState([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(null);
+  const [totalHits, setTotalHits] = useState(null);
 
-  componentDidUpdate(prevProps, prevState) {
-    const prevImgName = prevState.name;
-    const currentImgName = this.state.name;
-    const prevPage = prevState.currentPage;
-    const currentPage = this.state.currentPage;
-    if (currentImgName !== prevImgName || prevPage !== currentPage) {
-      this.setState({ isLoading: true });
-      this.fetchPictures();
+  useEffect(() => {
+    const prevImgName = localStorage.getItem('imgName');
+    if (prevImgName) {
+      setName(prevImgName);
     }
-  }
+  }, []);
 
-  handleImageNameSubmit = name => {
-    if (name !== this.state.name) {
-      this.setState({ name, currentPage: 1, pictures: [] });
+  useEffect(() => {
+    localStorage.setItem('imgName', name);
+  }, [name]);
+
+  useEffect(() => {
+    if (currentPage === totalPages - 1) {
+      toast.error('Кінець галереї');
     }
-  };
+  }, [currentPage, totalPages]);
 
-  loadMore = () => {
-    this.setState(prevState => ({
-      currentPage: prevState.currentPage + 1,
-    }));
-    if (this.state.currentPage === this.state.totalPages - 1) {
-      toast.error('End of gallery');
-    }
-  };
+  useEffect(() => {
+    if (name === '') return;
+    setIsLoading(true);
 
-  fetchPictures = async () => {
-    try {
-      const currentImgName = this.state.name;
-      const currentPage = this.state.currentPage;
-      await getPic(currentImgName, currentPage).then(pics => {
-        this.setState(prevState => ({
-          pictures: [...prevState.pictures, ...pics.hits],
-          totalPages: options.params.totalPages,
-          totalHits: options.params.totalHits,
-          isLoading: false,
-        }));
+    const fetchPictures = async () => {
+      try {
+        const pics = await getPic(name, currentPage);
+        setPictures((prevPictures) => [...prevPictures, ...pics.hits]);
+        setTotalPages(options.params.totalPages);
+        setTotalHits(options.params.totalHits);
+
         if (currentPage === 1 && pics.total > 0) {
           toast.success(`Found ${pics.total} images!!!`);
         }
-      });
-    } catch (error) {
-      toast.error('Oops! Something went wrong!');
-    }
+      } catch (error) {
+        toast.error('Oops! Something went wrong!');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchPictures();
+  }, [name, currentPage]);
+
+  const handleImageNameSubmit = (name) => {
+   if (name !== '') {
+  setName(name);
+  setCurrentPage(1);
+  setPictures([]);
+}
   };
 
-  render() {
-    const { totalHits, pictures, totalPages } = this.state;
-    return (
-      <AppSection>
-        <SearchBar onSubmit={this.handleImageNameSubmit} />
-        {this.state.pictures.length > 0 && (
-          <ImageGallery
-            pics={pictures}
-            loadMore={this.loadMore}
-            totalHits={totalHits}
-            totalPages={totalPages}
-          />
-        )}
-        {this.state.isLoading && <Loader />}
-        <ToastContainer autoClose={3000} />
-      </AppSection>
-    );
-  }
-}
+  const loadMore = () => {
+    setCurrentPage((prevPage) => prevPage + 1);
+  };
+
+  return (
+    <AppSection>
+      <SearchBar onSubmit={handleImageNameSubmit} />
+      {pictures.length > 0 && (
+        <ImageGallery pics={pictures} loadMore={loadMore} totalHits={totalHits} totalPages={totalPages} />
+      )}
+      {isLoading && <Loader />}
+      <ToastContainer autoClose={3000} />
+    </AppSection>
+  );
+};
+
+
